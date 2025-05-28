@@ -13,8 +13,8 @@ log_error() {
 
 # --- Global Parameters ---
 
-CURRENT_DIR="$(dirname "$0")"
-log_info "Working directory: $CURRENT_DIR"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+log_info "Working directory: $SCRIPT_DIR"
 
 # Guacamole
 
@@ -65,7 +65,7 @@ setup_guacd() {
     local GUACD_DIR="/tmp/guacamole-server"
     sudo mkdir -p "$GUACD_DIR"
 
-    sudo tar -xzf "$CURRENT_DIR/$GUACD_TAR" --strip-components=1 -C "$GUACD_DIR" || log_error "Failed to extract guacd source."
+    sudo tar -xzf "$SCRIPT_DIR/$GUACD_TAR" --strip-components=1 -C "$GUACD_DIR" || log_error "Failed to extract guacd source."
 
     cd "$GUACD_DIR" || log_error "Failed to change directory to $GUACD_DIR."
 
@@ -100,7 +100,7 @@ setup_tomcat9_manual() {
     # Extract Tomcat
     log_info "Extracting Apache Tomcat..."
     sudo mkdir -p "$TOMCAT_INSTALL_DIR" || log_error "Failed to create Tomcat installation directory."
-    sudo tar -xzf "$CURRENT_DIR/${TOMCAT_TAR}" -C "$TOMCAT_INSTALL_DIR" --strip-components=1 || log_error "Failed to extract Tomcat."
+    sudo tar -xzf "$SCRIPT_DIR/${TOMCAT_TAR}" -C "$TOMCAT_INSTALL_DIR" --strip-components=1 || log_error "Failed to extract Tomcat."
 
     # Set Permissions
     log_info "Setting permissions for Tomcat installation..."
@@ -163,7 +163,7 @@ EOF
 deploy_guacamole_war() {
     log_info "Deploying guacamole.war to Tomcat's webapps directory..."
     # Move WAR to Tomcat's webapps directory
-    sudo cp "$CURRENT_DIR/$GUAC_WAR" "${TOMCAT_INSTALL_DIR}/webapps/guacamole.war" || log_error "Failed to deploy guacamole.war."
+    sudo cp "$SCRIPT_DIR/$GUAC_WAR" "${TOMCAT_INSTALL_DIR}/webapps/guacamole.war" || log_error "Failed to deploy guacamole.war."
     sudo chown "${TOMCAT_USER}":"${TOMCAT_GROUP}" "${TOMCAT_INSTALL_DIR}/webapps/guacamole.war" || log_error "Failed to set ownership for guacamole.war."
     log_info "guacamole.war deployed."
 }
@@ -189,7 +189,7 @@ EOF
     log_info "Installing Guacamole JDBC extension for PostgreSQL..."
     local GUAC_JDBC_DIR="/tmp/guacamole-auth-jdbc"
 	sudo mkdir -p "$GUAC_JDBC_DIR"
-    sudo tar -xzf "$CURRENT_DIR/$GUAC_JDBC_TAR" --strip-components=1 -C "$GUAC_JDBC_DIR" || log_error "Failed to extract JDBC extension."
+    sudo tar -xzf "$SCRIPT_DIR/$GUAC_JDBC_TAR" --strip-components=1 -C "$GUAC_JDBC_DIR" || log_error "Failed to extract JDBC extension."
 
     sudo mkdir -p /etc/guacamole/extensions || log_error "Failed to create /etc/guacamole/extensions."
     sudo mkdir -p /etc/guacamole/lib || log_error "Failed to create /etc/guacamole/lib."
@@ -198,7 +198,7 @@ EOF
     sudo cp "$GUAC_JDBC_DIR/postgresql/guacamole-auth-jdbc-postgresql-1.5.5.jar" /etc/guacamole/extensions/ || log_error "Failed to copy PostgreSQL JDBC extension."
 
     # Copy PostgreSQL JDBC driver (should be included in the JDBC extension tarball)
-    sudo cp "$CURRENT_DIR/$POSTGRESQL_JDBC_JAR" /etc/guacamole/lib/
+    sudo cp "$SCRIPT_DIR/$POSTGRESQL_JDBC_JAR" /etc/guacamole/lib/
 
     log_info "Initializing Guacamole database schema (PostgreSQL)..."
     # Execute all SQL schema files in order
