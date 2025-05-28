@@ -1,5 +1,7 @@
 #!/bin/bash
 
+CURRENT_DIR="$(dirname "$0")"
+
 # Guacamole
 
 GUACD_TAR="guacamole-server-1.5.5.tar.gz"
@@ -25,13 +27,11 @@ POSTGRESQL_GUAC_DB_USER="guacamole_user"
 # --- Utility Functions ---
 
 log_info() {
-    echo "$(date +'%Y-%m-%d %H:%M:%S') INFO: $1"
     echo "$(date +'%Y-%m-%d %H:%M:%S') INFO: $1" | tee /var/log/bastion-install.log
 }
 
 log_error() {
-    echo "$(date +'%Y-%m-%d %H:%M:%S') ERROR: $1" >&2
-    echo "$(date +'%Y-%m-%d %H:%M:%S') ERROR: $1" | tee /var/log/bastion-install.log
+    echo "$(date +'%Y-%m-%d %H:%M:%S') ERROR: $1" >&2 | tee /var/log/bastion-install.log
     exit 1
 }
 
@@ -57,11 +57,11 @@ install_system_dependencies() {
 }
 
 setup_guacd() {
-    log_info "Downloading and building guacd (Guacamole Server)..."
+    log_info "Building guacd (Guacamole Server)..."
     local GUACD_DIR="/tmp/guacamole-server"
     sudo mkdir -p "$GUACD_DIR"
 
-    tar -xzf "./$GUACD_TAR" --strip-components=1 -C "$GUACD_DIR" || log_error "Failed to extract guacd source."
+    sudo tar -xzf "$CURRENT_DIR/$GUACD_TAR" --strip-components=1 -C "$GUACD_DIR" || log_error "Failed to extract guacd source."
 
     cd "$GUACD_DIR" || log_error "Failed to change directory to $GUACD_DIR."
 
@@ -96,7 +96,7 @@ setup_tomcat9_manual() {
     # Extract Tomcat
     log_info "Extracting Apache Tomcat..."
     sudo mkdir -p "$TOMCAT_INSTALL_DIR" || log_error "Failed to create Tomcat installation directory."
-    sudo tar -xzf "./${TOMCAT_TAR}" -C "$TOMCAT_INSTALL_DIR" --strip-components=1 || log_error "Failed to extract Tomcat."
+    sudo tar -xzf "$CURRENT_DIR/${TOMCAT_TAR}" -C "$TOMCAT_INSTALL_DIR" --strip-components=1 || log_error "Failed to extract Tomcat."
 
     # Set Permissions
     log_info "Setting permissions for Tomcat installation..."
@@ -159,7 +159,7 @@ EOF
 deploy_guacamole_war() {
     log_info "Deploying guacamole.war to Tomcat's webapps directory..."
     # Move WAR to Tomcat's webapps directory
-    sudo cp "./$GUAC_WAR" "${TOMCAT_INSTALL_DIR}/webapps/guacamole.war" || log_error "Failed to deploy guacamole.war."
+    sudo cp "$CURRENT_DIR/$GUAC_WAR" "${TOMCAT_INSTALL_DIR}/webapps/guacamole.war" || log_error "Failed to deploy guacamole.war."
     sudo chown "${TOMCAT_USER}":"${TOMCAT_GROUP}" "${TOMCAT_INSTALL_DIR}/webapps/guacamole.war" || log_error "Failed to set ownership for guacamole.war."
     log_info "guacamole.war deployed."
 }
@@ -182,10 +182,12 @@ GRANT ALL PRIVILEGES ON DATABASE "$POSTGRESQL_GUAC_DB_NAME" TO "$POSTGRESQL_GUAC
 EOF
     # Grant full access for the new user to Guacamole database
     log_info "Granting full access for ($POSTGRESQL_GUAC_DB_USER) on ($POSTGRESQL_GUAC_DB_NAME)..."
-    sudo -u postgres $POSTGRESQL_GUAC_DB_NAME <<EOF || log_error "Failed to grant PostgreSQL database access to user."
+    sudo -u postgres psql -d "$POSTGRESQL_GUAC_DB_NAME" <<EOF || log_error "Failed to grant PostgreSQL database access to user."
 GRANT ALL PRIVILEGES ON SCHEMA public TO "$POSTGRESQL_GUAC_DB_USER";
+GRANT USAGE ON SCHEMA public TO "$POSTGRESQL_GUAC_DB_USER";
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO "$POSTGRESQL_GUAC_DB_USER";
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO "$POSTGRESQL_GUAC_DB_USER";
+GRANT ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA public TO "$POSTGRESQL_GUAC_DB_USER";
 EOF
 
     log_info "PostgreSQL database and user created."
@@ -193,16 +195,16 @@ EOF
     log_info "Installing Guacamole JDBC extension for PostgreSQL..."
     local GUAC_JDBC_DIR="/tmp/guacamole-auth-jdbc"
 	sudo mkdir -p "$GUAC_JDBC_DIR"
-    tar -xzf "./$GUAC_JDBC_TAR" --strip-components=1 -C "$GUAC_JDBC_DIR" || log_error "Failed to extract JDBC extension."
+    sudo tar -xzf "$CURRENT_DIR/$GUAC_JDBC_TAR" --strip-components=1 -C "$GUAC_JDBC_DIR" || log_error "Failed to extract JDBC extension."
 
     sudo mkdir -p /etc/guacamole/extensions || log_error "Failed to create /etc/guacamole/extensions."
     sudo mkdir -p /etc/guacamole/lib || log_error "Failed to create /etc/guacamole/lib."
 
     # Copy PostgreSQL JDBC extension JAR
-    sudo cp "$GUAC_JDBC_DIR/postgresql/guacamole-auth-jdbc-postgresql-*.jar" /etc/guacamole/extensions/ || log_error "Failed to copy PostgreSQL JDBC extension."
+    sudo cp "$GUAC_JDBC_DIR/postgresql/guacamole-auth-jdbc-postgresql-1.5.5.jar" /etc/guacamole/extensions/ || log_error "Failed to copy PostgreSQL JDBC extension."
 
     # Copy PostgreSQL JDBC driver (should be included in the JDBC extension tarball)
-    sudo cp "./$POSTGRESQL_JDBC_JAR" /etc/guacamole/lib/
+    sudo cp "$CURRENT_DIR/$POSTGRESQL_JDBC_JAR" /etc/guacamole/lib/
 
     log_info "Initializing Guacamole database schema (PostgreSQL)..."
     # Execute all SQL schema files in order
@@ -254,6 +256,7 @@ restart_all_services() {
     log_info "Restarting Guacamole and Tomcat services to apply changes..."
     sudo systemctl restart guacd || log_error "Failed to restart guacd."
     sudo systemctl restart tomcat9 || log_error "Failed to restart tomcat9."
+    sudo systemctl restart postgresql || log_error "Failed to restart postgresql."
     log_info "All services restarted."
 }
 
