@@ -1,6 +1,20 @@
 #!/bin/bash
 
+# --- Utility Functions ---
+
+log_info() {
+    echo "$(date +'%Y-%m-%d %H:%M:%S') INFO: $1" >> /var/log/bastion-install.log
+}
+
+log_error() {
+    echo "$(date +'%Y-%m-%d %H:%M:%S') ERROR: $1" >> /var/log/bastion-install.log
+    exit 1
+}
+
+# --- Global Parameters ---
+
 CURRENT_DIR="$(dirname "$0")"
+log_info "Working directory: $CURRENT_DIR"
 
 # Guacamole
 
@@ -24,16 +38,6 @@ POSTGRES_ROOT_PASSWORD="A330B513-9D41-44A5-9FFE-F5D4D87C1AC9"
 POSTGRESQL_GUAC_DB_NAME="guacamole_db"
 POSTGRESQL_GUAC_DB_USER="guacamole_user"
 
-# --- Utility Functions ---
-
-log_info() {
-    echo "$(date +'%Y-%m-%d %H:%M:%S') INFO: $1" | tee /var/log/bastion-install.log
-}
-
-log_error() {
-    echo "$(date +'%Y-%m-%d %H:%M:%S') ERROR: $1" >&2 | tee /var/log/bastion-install.log
-    exit 1
-}
 
 command_exists() {
     command -v "$1" >/dev/null 2>&1
