@@ -26,10 +26,12 @@ POSTGRESQL_GUAC_DB_USER="guacamole_user"
 
 log_info() {
     echo "$(date +'%Y-%m-%d %H:%M:%S') INFO: $1"
+    echo "$(date +'%Y-%m-%d %H:%M:%S') INFO: $1" | tee /var/log/bastion-install.log
 }
 
 log_error() {
     echo "$(date +'%Y-%m-%d %H:%M:%S') ERROR: $1" >&2
+    echo "$(date +'%Y-%m-%d %H:%M:%S') ERROR: $1" | tee /var/log/bastion-install.log
     exit 1
 }
 
