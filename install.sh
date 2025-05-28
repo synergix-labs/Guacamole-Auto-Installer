@@ -178,16 +178,6 @@ setup_postgresql_database() {
     sudo -u postgres psql <<EOF || log_error "Failed to create PostgreSQL database/user."
 CREATE DATABASE "$POSTGRESQL_GUAC_DB_NAME";
 CREATE USER "$POSTGRESQL_GUAC_DB_USER" WITH PASSWORD '$POSTGRES_ROOT_PASSWORD';
-GRANT ALL PRIVILEGES ON DATABASE "$POSTGRESQL_GUAC_DB_NAME" TO "$POSTGRESQL_GUAC_DB_USER";
-EOF
-    # Grant full access for the new user to Guacamole database
-    log_info "Granting full access for ($POSTGRESQL_GUAC_DB_USER) on ($POSTGRESQL_GUAC_DB_NAME)..."
-    sudo -u postgres psql -d "$POSTGRESQL_GUAC_DB_NAME" <<EOF || log_error "Failed to grant PostgreSQL database access to user."
-GRANT ALL PRIVILEGES ON SCHEMA public TO "$POSTGRESQL_GUAC_DB_USER";
-GRANT USAGE ON SCHEMA public TO "$POSTGRESQL_GUAC_DB_USER";
-GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO "$POSTGRESQL_GUAC_DB_USER";
-GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO "$POSTGRESQL_GUAC_DB_USER";
-GRANT ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA public TO "$POSTGRESQL_GUAC_DB_USER";
 EOF
 
     log_info "PostgreSQL database and user created."
@@ -213,6 +203,17 @@ EOF
         log_info "Executing schema file: $(basename "$sql_file")..."
         sudo -u postgres psql "$POSTGRESQL_GUAC_DB_NAME" < "$sql_file" || log_error "Failed to execute SQL schema file: $sql_file."
     done
+	
+    # Grant full access for the new user to Guacamole database
+    log_info "Granting full access for ($POSTGRESQL_GUAC_DB_USER) on ($POSTGRESQL_GUAC_DB_NAME)..."
+    sudo -u postgres psql -d "$POSTGRESQL_GUAC_DB_NAME" <<EOF || log_error "Failed to grant PostgreSQL database access to user."
+GRANT ALL PRIVILEGES ON DATABASE "$POSTGRESQL_GUAC_DB_NAME" TO "$POSTGRESQL_GUAC_DB_USER";
+GRANT ALL PRIVILEGES ON SCHEMA public TO "$POSTGRESQL_GUAC_DB_USER";
+GRANT USAGE ON SCHEMA public TO "$POSTGRESQL_GUAC_DB_USER";
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO "$POSTGRESQL_GUAC_DB_USER";
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO "$POSTGRESQL_GUAC_DB_USER";
+GRANT ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA public TO "$POSTGRESQL_GUAC_DB_USER";
+EOF
     log_info "Database schema initialized."
 }
 
