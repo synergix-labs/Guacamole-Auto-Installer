@@ -227,6 +227,7 @@ configure_guacamole_properties() {
 # Hostname and port of guacamole proxy (guacd)
 guacd-hostname: localhost
 guacd-port: 4822
+api-session-timeout: 0
 
 # PostgreSQL properties
 postgresql-hostname: localhost
