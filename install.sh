@@ -3,25 +3,24 @@
 # --- Utility Functions ---
 
 log_info() {
-    echo "$(date +'%Y-%m-%d %H:%M:%S') INFO: $1" >> /var/log/bastion-install.log
+    echo "$(date +'%Y-%m-%d %H:%M:%S') INFO: $1"
 }
 
 log_error() {
-    echo "$(date +'%Y-%m-%d %H:%M:%S') ERROR: $1" >> /var/log/bastion-install.log
+    echo "$(date +'%Y-%m-%d %H:%M:%S') ERROR: $1"
     exit 1
 }
 
 if [ $# -lt 1 ]; then
     log_error "Error: Missing required parameter 'GUAC_PASS'"
-    exit 1
 fi
+
 if [ $# -lt 2 ]; then
     log_error "Error: Missing required parameter 'GUAC_PASS_HASH'"
-    exit 1
 fi
+
 if [ $# -lt 3 ]; then
     log_error "Error: Missing required parameter 'GUAC_PASS_SALT'"
-    exit 1
 fi
 
 # --- Global Parameters ---
@@ -34,6 +33,7 @@ log_info "Working directory: $SCRIPT_DIR"
 GUACD_TAR="guacamole-server-1.5.5.tar.gz"
 GUAC_WAR="guacamole-1.5.5.war"
 GUAC_JDBC_TAR="guacamole-auth-jdbc-1.5.5.tar.gz"
+GUAC_RECORD_EXT_JAR="guacamole-history-recording-storage-1.5.5.jar"
 GUAC_PASS="$1"
 GUAC_PASS_HASH="$2"
 GUAC_PASS_SALT="$3"
@@ -146,7 +146,7 @@ Environment=JAVA_HOME=${JAVA_HOME_PATH}
 Environment=CATALINA_PID=${TOMCAT_INSTALL_DIR}/temp/tomcat.pid
 Environment=CATALINA_HOME=${TOMCAT_INSTALL_DIR}
 Environment=CATALINA_BASE=${TOMCAT_INSTALL_DIR}
-Environment=GUACAMOLE_HOME=/etc/guacamole # <-- Guacamole's config directory
+Environment=GUACAMOLE_HOME=/etc/guacamole
 ExecStart=${TOMCAT_INSTALL_DIR}/bin/startup.sh
 ExecStop=${TOMCAT_INSTALL_DIR}/bin/shutdown.sh
 Restart=on-failure
@@ -182,6 +182,20 @@ deploy_guacamole_war() {
     sudo cp "$SCRIPT_DIR/$GUAC_WAR" "${TOMCAT_INSTALL_DIR}/webapps/guacamole.war" || log_error "Failed to deploy guacamole.war."
     sudo chown "${TOMCAT_USER}":"${TOMCAT_GROUP}" "${TOMCAT_INSTALL_DIR}/webapps/guacamole.war" || log_error "Failed to set ownership for guacamole.war."
     log_info "guacamole.war deployed."
+}
+
+deploy_guacamole_recording_extension() {
+    log_info "Deploying guacamole extensions..."
+
+    sudo mkdir -p /etc/guacamole/extensions || log_error "Failed to create /etc/guacamole/extensions."
+    sudo mkdir -p /var/lib/guacamole/recordings || log_error "Failed to create /var/lib/guacamole/recordings."
+    sudo chmod -R 777 /etc/guacamole || log_error "Failed to modify permissions for /etc/guacamole."
+    sudo chmod -R 777 /var/lib/guacamole || log_error "Failed to modify permissions for /var/lib/guacamole."
+
+    # Move recoding extension jar /etc/guacamole/extensions
+    sudo cp "$SCRIPT_DIR/$GUAC_RECORD_EXT_JAR" "/etc/guacamole/extensions" || log_error "Failed to deploy guacamole recording extension."
+    sudo bash -c '(crontab -l 2>/dev/null; echo "0 2 * * * find /var/lib/guacamole/recordings -type f -mtime +30 -exec rm -fv {} \; && find /var/lib/guacamole/recordings -type d -empty -delete") | crontab -' || log_error "Failed set auto recording cleanup job."
+    log_info "guacamole recording extension deployed."
 }
 
 setup_postgresql_database() {
@@ -248,7 +262,13 @@ configure_guacamole_properties() {
 # Hostname and port of guacamole proxy (guacd)
 guacd-hostname: localhost
 guacd-port: 4822
-api-session-timeout: 0
+
+# Other configs
+api-session-timeout: 120
+recording-path: /var/lib/guacamole/recordings
+recording-search-path: /var/lib/guacamole/recordings
+recording-enabled: true
+recording-auto-create-path: true
 
 # PostgreSQL properties
 postgresql-hostname: localhost
@@ -295,6 +315,7 @@ install_system_dependencies
 setup_guacd
 setup_tomcat9_manual # Install and configure Tomcat 9
 deploy_guacamole_war
+deploy_guacamole_recording_extension
 setup_postgresql_database
 configure_guacamole_properties
 adjust_firewall
