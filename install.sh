@@ -11,6 +11,19 @@ log_error() {
     exit 1
 }
 
+if [ $# -lt 1 ]; then
+    log_error "Error: Missing required parameter 'GUAC_PASS'"
+    exit 1
+fi
+if [ $# -lt 2 ]; then
+    log_error "Error: Missing required parameter 'GUAC_PASS_HASH'"
+    exit 1
+fi
+if [ $# -lt 3 ]; then
+    log_error "Error: Missing required parameter 'GUAC_PASS_SALT'"
+    exit 1
+fi
+
 # --- Global Parameters ---
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -21,6 +34,9 @@ log_info "Working directory: $SCRIPT_DIR"
 GUACD_TAR="guacamole-server-1.5.5.tar.gz"
 GUAC_WAR="guacamole-1.5.5.war"
 GUAC_JDBC_TAR="guacamole-auth-jdbc-1.5.5.tar.gz"
+GUAC_PASS="$1"
+GUAC_PASS_HASH="$2"
+GUAC_PASS_SALT="$3"
 
 # TOMCAT 9 (Manual Installation since it's not in Ubuntu 24.04 repos)
 
@@ -201,6 +217,11 @@ EOF
     sudo cp "$SCRIPT_DIR/$POSTGRESQL_JDBC_JAR" /etc/guacamole/lib/
 
     log_info "Initializing Guacamole database schema (PostgreSQL)..."
+
+    # Replacing password hash and salt in 002-create-admin-user.sql
+    sudo sed -i "s/D1084F21DCB7093B11F99BEAADD6015F312D12EC2F8329511FF607B274E661F0/$GUAC_PASS_HASH/g" "$GUAC_JDBC_DIR/postgresql/schema/002-create-admin-user.sql"
+    sudo sed -i "s/FB1FB4910F16A3E12E3F117383C495A44C95F9C94B0F0034146B48CDD654D039/$GUAC_PASS_SALT/g" "$GUAC_JDBC_DIR/postgresql/schema/002-create-admin-user.sql"
+
     # Execute all SQL schema files in order
     local SCHEMA_DIR="$GUAC_JDBC_DIR/postgresql/schema"
     for sql_file in "$SCHEMA_DIR"/*.sql; do
@@ -287,7 +308,7 @@ log_info "Tomcat default login: ${TOMCAT_ADMIN_USER} / ${TOMCAT_ADMIN_PASSWORD} 
 
 log_info "Guacd is running at port: tcp://YOUR_SERVER_IP:4822"
 log_info "Guacamole is running at: http://YOUR_SERVER_IP:8080/guacamole/"
-log_info "Guacamole default login: guacadmin / 4A3C5CE6-D151-4DF7-B256-B377FEE62170 (If you change it you need to change it too in LEDR Api configurations)"
+log_info "Guacamole default login: guacadmin / ${GUAC_PASS} (If you change it you need to change it too in LEDR Api configurations)"
 
 log_info "PostgreSQL is running at port: tcp://YOUR_SERVER_IP:5432"
 log_info "PostgreSQL default login: postgres / ${POSTGRES_ROOT_PASSWORD} (Feel free to change it)"
