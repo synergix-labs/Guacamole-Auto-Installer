@@ -23,6 +23,10 @@ if [ $# -lt 3 ]; then
     log_error "Error: Missing required parameter 'GUAC_PASS_SALT'"
 fi
 
+if [ -d "/etc/guacamole/" ]; then
+    log_info "Guacamole already installed, skipping installation..."
+    exit 0
+fi
 # --- Global Parameters ---
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -34,7 +38,7 @@ GUACD_TAR="guacamole-server-1.5.5.tar.gz"
 GUAC_WAR="guacamole-1.5.5.war"
 GUAC_JDBC_TAR="guacamole-auth-jdbc-1.5.5.tar.gz"
 GUAC_RECORD_EXT_JAR="guacamole-history-recording-storage-1.5.5.jar"
-GUAC_PASS="$1"
+GUAC_PASS="$1" #4A3C5CE6-D151-4DF7-B256-B377FEE62170
 GUAC_PASS_HASH="$2"
 GUAC_PASS_SALT="$3"
 
